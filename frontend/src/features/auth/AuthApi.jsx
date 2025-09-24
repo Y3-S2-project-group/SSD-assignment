@@ -2,7 +2,7 @@ import {axiosi} from '../../config/axios'
 
 export const signup=async(cred)=>{
     try {
-        const res=await axiosi.post("api/auth/signup",cred)
+        const res=await axiosi.post("/auth/signup",cred)
         return res.data
     } catch (error) {
         throw error.response.data
@@ -10,7 +10,7 @@ export const signup=async(cred)=>{
 }
 export const login=async(cred)=>{
     try {
-        const res=await axiosi.post("api/auth/login",cred)
+        const res=await axiosi.post("/auth/login",cred)
         return res.data
     } catch (error) {
         throw error.response.data
@@ -19,12 +19,12 @@ export const login=async(cred)=>{
 
 // Google OAuth login - redirect to backend
 export const loginWithGoogle = () => {
-    window.location.href = `${process.env.REACT_APP_BASE_URL}/api/auth/google`;
+    window.location.href = `http://localhost:8000/api/auth/google`;
 }
 
 export const verifyOtp=async(cred)=>{
     try {
-        const res=await axiosi.post("api/auth/verify-otp",cred)
+        const res=await axiosi.post("/auth/verify-otp",cred)
         return res.data
     } catch (error) {
         throw error.response.data
@@ -32,7 +32,7 @@ export const verifyOtp=async(cred)=>{
 }
 export const resendOtp=async(cred)=>{
     try {
-        const res=await axiosi.post("api/auth/resend-otp",cred)
+        const res=await axiosi.post("/auth/resend-otp",cred)
         return res.data
     } catch (error) {
         throw error.response.data
@@ -40,7 +40,7 @@ export const resendOtp=async(cred)=>{
 }
 export const forgotPassword=async(cred)=>{
     try {
-        const res=await axiosi.post("api/auth/forgot-password",cred)
+        const res=await axiosi.post("/auth/forgot-password",cred)
         return res.data
     } catch (error) {
         throw error.response.data
@@ -48,7 +48,7 @@ export const forgotPassword=async(cred)=>{
 }
 export const resetPassword=async(cred)=>{
     try {
-        const res=await axiosi.post("api/auth/reset-password",cred)
+        const res=await axiosi.post("/auth/reset-password",cred)
         return res.data
     } catch (error) {
         throw error.response.data
@@ -56,7 +56,7 @@ export const resetPassword=async(cred)=>{
 }
 export const checkAuth=async(cred)=>{
     try {
-        const res=await axiosi.get("api/auth/check-auth")
+        const res=await axiosi.get("/auth/check-auth")
         return res.data
     } catch (error) {
         throw error.response.data
@@ -64,7 +64,7 @@ export const checkAuth=async(cred)=>{
 }
 export const logout=async()=>{
     try {
-        const res=await axiosi.get("api/auth/logout")
+        const res=await axiosi.get("/auth/logout")
         return res.data
     } catch (error) {
         throw error.response.data
