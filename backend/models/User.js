@@ -13,7 +13,22 @@ const userSchema=new Schema({
     },
     password:{
         type:String,
-        required:true
+        required:function(){
+            return !this.googleId; // Password required only if not OAuth user
+        }
+    },
+    googleId:{
+        type:String,
+        sparse:true // Allows null values but ensures uniqueness when present
+    },
+    profilePicture:{
+        type:String,
+        default:null
+    },
+    authProvider:{
+        type:String,
+        enum:['local','google'],
+        default:'local'
     },
     isVerified:{
         type:Boolean,
@@ -22,7 +37,13 @@ const userSchema=new Schema({
     isAdmin:{
         type:Boolean,
         default:false
+    },
+    currentJTI:{
+        type:String,
+        default:null
     }
+}, {
+    timestamps: true
 })
 
 module.exports=mongoose.model("User",userSchema)

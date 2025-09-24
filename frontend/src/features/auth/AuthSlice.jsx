@@ -1,5 +1,5 @@
 import {createAsyncThunk, createSlice} from '@reduxjs/toolkit'
-import { checkAuth, forgotPassword, login, logout, resendOtp, resetPassword, signup, verifyOtp } from './AuthApi'
+import { checkAuth, forgotPassword, login, logout, resendOtp, resetPassword, signup, verifyOtp, loginWithGoogle } from './AuthApi'
 
 const initialState={
     status:"idle",
@@ -32,6 +32,11 @@ export const signupAsync=createAsyncThunk('auth/signupAsync',async(cred)=>{
 export const loginAsync=createAsyncThunk('auth/loginAsync',async(cred)=>{
     const res=await login(cred)
     return res
+})
+
+export const googleLoginAsync=createAsyncThunk('auth/googleLoginAsync',async()=>{
+    loginWithGoogle() // This will redirect to Google OAuth
+    return null
 })
 
 export const verifyOtpAsync=createAsyncThunk('auth/verifyOtpAsync',async(cred)=>{

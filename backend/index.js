@@ -4,10 +4,13 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const session = require("express-session");
 const fs = require("fs");
 const http = require("http");
 const https = require("https");
 const path = require("path");
+
+
 
 // Import routes
 const authRoutes = require("./routes/Auth");
@@ -49,10 +52,28 @@ const corsOptions = {
 };
 server.use(cors(corsOptions));
 
+// Import Passport configuration
+const passport = require("./config/passport");
+
 // --- Middlewares ---
 server.use(express.json());
 server.use(cookieParser());
 server.use(morgan("tiny"));
+
+// Express session configuration for OAuth
+server.use(session({
+    secret: process.env.SESSION_SECRET || process.env.SECRET_KEY,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.PRODUCTION === 'true',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
+// Initialize Passport middleware
+server.use(passport.initialize());
+server.use(passport.session());
 
 // Prevent NoSQL injection (strip out $ and . keys)
 const mongoSanitize = require("express-mongo-sanitize");
@@ -103,16 +124,16 @@ if (process.env.NODE_ENV === "production") {
 connectToDB();
 
 // --- Routes ---
-server.use("/auth", authRoutes);
-server.use("/users", userRoutes);
-server.use("/products", productRoutes);
-server.use("/orders", orderRoutes);
-server.use("/cart", cartRoutes);
-server.use("/brands", brandRoutes);
-server.use("/categories", categoryRoutes);
-server.use("/address", addressRoutes);
-server.use("/reviews", reviewRoutes);
-server.use("/wishlist", wishlistRoutes);
+server.use("/api/auth", authRoutes);
+server.use("/api/users", userRoutes);
+server.use("/api/products", productRoutes);
+server.use("/api/orders", orderRoutes);
+server.use("/api/cart", cartRoutes);
+server.use("/api/brands", brandRoutes);
+server.use("/api/categories", categoryRoutes);
+server.use("/api/address", addressRoutes);
+server.use("/api/reviews", reviewRoutes);
+server.use("/api/wishlist", wishlistRoutes);
 
 // --- Default Route ---
 server.get("/", (req, res) => {
