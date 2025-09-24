@@ -21,7 +21,8 @@ const initialState={
     resetPasswordSuccessMessage:null,
     resetPasswordError:null,
     successMessage:null,
-    isAuthChecked:false
+    isAuthChecked:false,
+    authCheckStatus:"idle" // Separate status for auth checking
 }
 
 export const signupAsync=createAsyncThunk('auth/signupAsync',async(cred)=>{
@@ -216,15 +217,16 @@ const authSlice=createSlice({
             })
 
             .addCase(checkAuthAsync.pending,(state)=>{
-                state.status='pending'
+                state.authCheckStatus='pending'
+                state.isAuthChecked=true // Set to true when starting to prevent duplicate calls
             })
             .addCase(checkAuthAsync.fulfilled,(state,action)=>{
-                state.status='fullfilled'
+                state.authCheckStatus='fulfilled'
                 state.loggedInUser=action.payload
                 state.isAuthChecked=true
             })
             .addCase(checkAuthAsync.rejected,(state,action)=>{
-                state.status='rejected'
+                state.authCheckStatus='rejected'
                 state.errors=action.error
                 state.isAuthChecked=true
             })
@@ -235,6 +237,7 @@ const authSlice=createSlice({
 
 // exporting selectors
 export const selectAuthStatus=(state)=>state.AuthSlice.status
+export const selectAuthCheckStatus=(state)=>state.AuthSlice.authCheckStatus // New selector
 export const selectAuthErrors=(state)=>state.AuthSlice.errors
 export const selectLoggedInUser=(state)=>state.AuthSlice.loggedInUser
 export const selectAuthSuccessMessage=(state)=>state.AuthSlice.successMessage

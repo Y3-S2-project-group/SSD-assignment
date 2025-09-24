@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { checkAuthAsync } from '../features/auth/AuthSlice';
+import { useSelector } from 'react-redux';
+import { selectLoggedInUser, selectIsAuthChecked } from '../features/auth/AuthSlice';
 
 const OAuthSuccess = () => {
     const navigate = useNavigate();
-    const dispatch = useDispatch();
     const [searchParams] = useSearchParams();
+    const loggedInUser = useSelector(selectLoggedInUser);
+    const isAuthChecked = useSelector(selectIsAuthChecked);
 
     useEffect(() => {
         const handleOAuthSuccess = async () => {
@@ -17,31 +18,29 @@ const OAuthSuccess = () => {
                 console.log('OAuth Success page - user param:', userParam);
                 
                 if (userParam) {
-                    // User data exists, meaning OAuth was successful
-                    console.log('User data found, attempting to check auth...');
+                    console.log('User data found in URL, waiting for auth check...');
                     
-                    // Add a small delay to ensure cookie is set properly
-                    setTimeout(async () => {
-                        try {
-                            // Check authentication status to update Redux store
-                            const result = await dispatch(checkAuthAsync());
-                            console.log('checkAuthAsync result:', result);
-                            
-                            if (result.type.includes('fulfilled')) {
-                                console.log('Auth check successful, navigating to home');
+                    // Instead of manually calling checkAuthAsync, 
+                    // wait for the useAuthCheck hook in App.js to handle it
+                    const checkAuth = () => {
+                        if (isAuthChecked) {
+                            if (loggedInUser) {
+                                console.log('Auth check complete, user logged in, navigating to home');
                                 navigate('/', { replace: true });
                             } else {
-                                console.log('Auth check failed, navigating to login');
+                                console.log('Auth check complete, but no user found, navigating to login');
                                 navigate('/login?error=oauth_failed', { replace: true });
                             }
-                        } catch (error) {
-                            console.error('Error during auth check:', error);
-                            navigate('/login?error=oauth_failed', { replace: true });
+                        } else {
+                            // Wait a bit more for auth check to complete
+                            setTimeout(checkAuth, 500);
                         }
-                    }, 1000); // 1 second delay
+                    };
+                    
+                    // Start checking after a small delay to let useAuthCheck run first
+                    setTimeout(checkAuth, 1000);
                 } else {
                     console.log('No user data, redirecting to login');
-                    // No user data, redirect to login
                     navigate('/login?error=oauth_failed', { replace: true });
                 }
             } catch (error) {
@@ -51,7 +50,7 @@ const OAuthSuccess = () => {
         };
 
         handleOAuthSuccess();
-    }, [dispatch, navigate, searchParams]);
+    }, [navigate, searchParams, loggedInUser, isAuthChecked]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
