@@ -46,37 +46,52 @@ exports.signup=async(req,res)=>{
     }
 }
 
-exports.login=async(req,res)=>{
-    try {
-        // checking if user exists or not
-        const existingUser=await User.findOne({email:req.body.email})
+exports.login = async (req, res) => {
+  try {
+    // Force inputs to primitive strings to prevent NoSQL operator injection
+    const email = String(req.body.email || '').trim();
+    const password = String(req.body.password || '');
 
-        // if exists and password matches the hash
-        if(existingUser && (await bcrypt.compare(req.body.password,existingUser.password))){
-
-            // getting secure user info
-            const secureInfo=sanitizeUser(existingUser)
-
-            // generating jwt token
-            const token=generateToken(secureInfo)
-
-            // sending jwt token in the response cookies
-            res.cookie('token',token,{
-                sameSite:process.env.PRODUCTION==='true'?"None":'Lax',
-                maxAge:new Date(Date.now() + (parseInt(process.env.COOKIE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000))),
-                httpOnly:true,
-                secure:process.env.PRODUCTION==='true'?true:false
-            })
-            return res.status(200).json(sanitizeUser(existingUser))
-        }
-
-        res.clearCookie('token');
-        return res.status(404).json({message:"Invalid Credentails"})
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:'Some error occured while logging in, please try again later'})
+    // Basic email format validation (rejects objects and obviously invalid values)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      // Do not reveal whether email exists — return generic message
+      return res.status(400).json({ message: 'Invalid Credentials' });
     }
-}
+
+    // Find user by the sanitized email (no user-controlled operators)
+    const existingUser = await User.findOne({ email });
+
+    // Verify existence and password (bcrypt.compare expects strings)
+    if (!existingUser || !(await bcrypt.compare(password, existingUser.password))) {
+      // Optional: clear token cookie to be safe
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.PRODUCTION === 'true',
+        sameSite: process.env.PRODUCTION === 'true' ? 'None' : 'Strict'
+      });
+      return res.status(404).json({ message: 'Invalid Credentials' });
+    }
+
+    // Only after successful auth, prepare safe user info and generate token
+    const secureInfo = sanitizeUser(existingUser);
+    const token = await generateToken(secureInfo);
+
+    // Set cookie with secure flags (works as intended in prod over HTTPS)
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.PRODUCTION === 'true',
+      sameSite: process.env.PRODUCTION === 'true' ? 'None' : 'Strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    return res.status(200).json(secureInfo);
+  } catch (error) {
+    console.error('Login error:', error);
+    // Do not leak internal errors to client
+    return res.status(500).json({ message: 'Some error occurred while logging in, please try again later' });
+  }
+};
 
 exports.verifyOtp=async(req,res)=>{
     try {
@@ -232,19 +247,25 @@ exports.resetPassword=async(req,res)=>{
     }
 }
 
-exports.logout=async(req,res)=>{
+exports.logout = async (req, res) => {
     try {
-        res.cookie('token',{
-            maxAge:0,
-            sameSite:process.env.PRODUCTION==='true'?"None":'Lax',
-            httpOnly:true,
-            secure:process.env.PRODUCTION==='true'?true:false
-        })
-        res.status(200).json({message:'Logout successful'})
+        if (req.user?._id) {
+            // revoke token by clearing JTI
+            await User.findByIdAndUpdate(req.user._id, { currentJTI: null });
+        }
+
+        res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.PRODUCTION === 'true',
+        sameSite: process.env.PRODUCTION === 'true' ? 'None' : 'Strict'
+    });
+
+        res.status(200).json({ message: 'Logout successful' });
     } catch (error) {
         console.log(error);
+        res.status(500).json({ message: 'Error logging out' });
     }
-}
+};
 
 exports.checkAuth=async(req,res)=>{
     try {

@@ -1,5 +1,5 @@
-import SwipeableViews from 'react-swipeable-views';
-import { autoPlay } from 'react-swipeable-views-utils';
+import SwipeableViews from 'react-swipeable-views-react-18-fix';
+import { autoPlay } from 'react-swipeable-views-utils-react-18-fix';
 import MobileStepper from '@mui/material/MobileStepper';
 import { Box, useTheme } from '@mui/material';
 import { useState } from 'react';
