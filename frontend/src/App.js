@@ -20,7 +20,7 @@ function App() {
 
 
   useAuthCheck();
-  useFetchLoggedInUserDetails(loggedInUser);
+  useFetchLoggedInUserDetails(); // Remove the parameter
 
 
   const routes = createBrowserRouter(
