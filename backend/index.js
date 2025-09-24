@@ -54,6 +54,24 @@ server.use(express.json());
 server.use(cookieParser());
 server.use(morgan("tiny"));
 
+// Prevent NoSQL injection (strip out $ and . keys)
+const mongoSanitize = require("express-mongo-sanitize");
+server.use(mongoSanitize());
+
+// Add security headers (beyond your manual CSP)
+const helmet = require("helmet");
+server.use(helmet());
+
+// Optional: Rate limiting (prevent brute force / DoS)
+const rateLimit = require("express-rate-limit");
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  standardHeaders: true, 
+  legacyHeaders: false, 
+});
+server.use(limiter);
+
 // --- Security Headers ---
 server.use((req, res, next) => {
   res.setHeader(
