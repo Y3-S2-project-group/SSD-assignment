@@ -16,6 +16,7 @@ exports.verifyToken = async (req, res, next) => {
 
         // check JTI against DB to prevent token replay
         const existingUser = await User.findById(decodedInfo._id);
+        
         if (!existingUser || decodedInfo.jti !== existingUser.currentJTI) {
             return res.status(401).json({ message: "Token revoked or invalid, please login again" });
         }
@@ -24,7 +25,7 @@ exports.verifyToken = async (req, res, next) => {
         req.user = decodedInfo;
         next();
     } catch (error) {
-        console.log(error);
+        console.log('verifyToken error:', error.message);
 
         if (error instanceof jwt.TokenExpiredError) {
             return res.status(401).json({ message: "Token expired, please login again" });

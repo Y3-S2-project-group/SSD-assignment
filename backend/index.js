@@ -3,6 +3,13 @@ const express = require("express")
 const cors = require("cors")
 const morgan = require("morgan")
 const cookieParser = require("cookie-parser")
+const session = require("express-session");
+const fs = require("fs");
+const http = require("http");
+const https = require("https");
+const path = require("path");
+const rateLimit = require("express-rate-limit");
+
 const authRoutes = require("./routes/Auth")
 const productRoutes = require("./routes/Product")
 const orderRoutes = require("./routes/Order")
@@ -13,9 +20,8 @@ const userRoutes = require("./routes/User")
 const addressRoutes = require("./routes/Address")
 const reviewRoutes = require("./routes/Review")
 const wishlistRoutes = require("./routes/Wishlist")
+const passport = require("./config/passport");
 const { connectToDB } = require("./database/db")
-
-const path = require("path")
 const helmet = require("helmet")
 
 // server init
@@ -37,6 +43,17 @@ server.use((req, res, next) => {
   );
   next();
 });
+
+// Express session configuration for OAuth
+server.use(session({
+    secret: process.env.SESSION_SECRET || process.env.SECRET_KEY,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.PRODUCTION === 'true',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
 
 // database connection
 connectToDB()
@@ -63,34 +80,36 @@ server.use(helmet.xssFilter()) // X-XSS-Protection: 1; mode=block
 server.use(helmet.referrerPolicy({ policy: "same-origin" })) // Referrer-Policy
 server.use(helmet.hidePoweredBy()) // Remove X-Powered-By header
 
-// CORS Configuration
-const allowedOrigins = [
-  "http://localhost:3000", // React dev server
-  "http://localhost:3001", // Alternative React port
-  "https://yourdomain.com" // Production domain (replace with actual)
-]
+// --- CORS Configuration ---
+const devOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
+const prodOrigins = [process.env.ORIGIN || ""]; // allow prod origin via env
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true)
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true)
+    if (!origin) return callback(null, true); // allow Postman & curl
+    const allowed =
+      process.env.NODE_ENV === "production" ? prodOrigins : devOrigins;
+
+    if (allowed.includes(origin)) {
+      callback(null, true);
     } else {
-      console.log(`Blocked CORS request from origin: ${origin}`)
-      callback(new Error('Not allowed by CORS'), false)
+      callback(new Error("Not allowed by CORS"));
     }
   },
-  credentials: true, // Important for HttpOnly cookies
+  credentials: true,
   exposedHeaders: ["X-Total-Count"],
-  methods: ["GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  preflightContinue: false,
-  optionsSuccessStatus: 200, // Changed from 204 to 200 for better compatibility
-}
+  methods: ["GET", "POST", "PATCH", "DELETE"],
+  optionsSuccessStatus: 204,
+};
+server.use(cors(corsOptions));
 
-server.use(cors(corsOptions))
+// Import Passport configuration
+
+// --- Middlewares ---
+server.use(express.json());
+// Initialize Passport middleware
+server.use(passport.initialize());
+server.use(passport.session());
 
 // Basic middlewares
 server.use(express.json({ limit: '10mb' })) // Added limit for file uploads
@@ -144,6 +163,16 @@ if (process.env.NODE_ENV === 'production') {
   })
 }
 
+// Optional: Rate limiting (prevent brute force / DoS)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Higher limit for development
+  message: { error: 'Too many requests from this IP, please try again later.' },
+  standardHeaders: true, 
+  legacyHeaders: false, 
+});
+server.use(limiter);
+
 // Error handling middleware
 server.use((err, req, res, next) => {
   console.error(err.stack)
@@ -158,11 +187,24 @@ server.use((req, res) => {
   res.status(404).json({ message: 'Route not found' })
 })
 
-const PORT = process.env.PORT || 8000
-server.listen(PORT, () => {
-  console.log(`Server [STARTED] ~ http://localhost:${PORT}`)
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`Security headers enabled: HSTS, CSP, X-Frame-Options`)
-})
+// --- Default Route ---
+server.get("/", (req, res) => {
+  res.status(200).json({ message: "running" });
+});
 
-module.exports = server
+// --- Server Startup ---
+if (process.env.NODE_ENV === "production") {
+  // Load SSL certs
+  const options = {
+    key: fs.readFileSync(path.join(__dirname, "certs", "server.key")),
+    cert: fs.readFileSync(path.join(__dirname, "certs", "server.cert")),
+  };
+
+  https.createServer(options, server).listen(8000, () => {
+    console.log("✅ Production server running at https://localhost:8000");
+  });
+} else {
+  http.createServer(server).listen(8000, () => {
+    console.log("✅ Dev server running at http://localhost:8000");
+  });
+}

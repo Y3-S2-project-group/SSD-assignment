@@ -1,4 +1,4 @@
-import {FormHelperText, Stack, TextField, Typography,Box, useTheme, useMediaQuery} from '@mui/material'
+import {FormHelperText, Stack, TextField, Typography,Box, useTheme, useMediaQuery, Button, Divider} from '@mui/material'
 import React, { useEffect } from 'react'
 import Lottie from 'lottie-react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form"
 import { ecommerceOutlookAnimation, shoppingBagAnimation} from '../../../assets'
 import {useDispatch,useSelector} from 'react-redux'
 import { LoadingButton } from '@mui/lab';
-import {selectLoggedInUser, signupAsync,selectSignupStatus, selectSignupError, clearSignupError, resetSignupStatus} from '../AuthSlice'
+import {selectLoggedInUser, signupAsync,selectSignupStatus, selectSignupError, clearSignupError, resetSignupStatus, googleLoginAsync} from '../AuthSlice'
 import { toast } from 'react-toastify'
 import { MotionConfig , motion} from 'framer-motion'
 
@@ -56,6 +56,10 @@ export const Signup = () => {
     const cred={...data}
     delete cred.confirmPassword
     dispatch(signupAsync(cred))
+  }
+
+  const handleGoogleLogin = () => {
+    dispatch(googleLoginAsync())
   }
 
   return (
@@ -108,6 +112,30 @@ export const Signup = () => {
 
                     <motion.div whileHover={{scale:1.020}} whileTap={{scale:1}}>
                       <LoadingButton sx={{height:'2.5rem'}} fullWidth loading={status==='pending'} type='submit' variant='contained'>Signup</LoadingButton>
+                    </motion.div>
+
+                    <Divider sx={{my: 2}}>
+                      <Typography variant="body2" color="textSecondary">
+                        OR
+                      </Typography>
+                    </Divider>
+
+                    <motion.div whileHover={{scale:1.020}} whileTap={{scale:1}}>
+                      <Button 
+                        fullWidth 
+                        variant='outlined' 
+                        sx={{height:'2.5rem', borderColor: 'primary.main'}}
+                        onClick={handleGoogleLogin}
+                        startIcon={
+                          <img 
+                            src="https://developers.google.com/identity/images/g-logo.png" 
+                            alt="Google" 
+                            style={{width: '20px', height: '20px'}}
+                          />
+                        }
+                      >
+                        Continue with Google
+                      </Button>
                     </motion.div>
 
                     <Stack flexDirection={'row'} justifyContent={'space-between'} alignItems={'center'} flexWrap={'wrap-reverse'}>

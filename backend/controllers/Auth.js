@@ -6,6 +6,7 @@ const Otp = require("../models/OTP");
 const { sanitizeUser } = require("../utils/SanitizeUser");
 const { generateToken } = require("../utils/GenerateToken");
 const PasswordResetToken = require("../models/PasswordResetToken");
+const passport = require("../config/passport");
 
 exports.signup=async(req,res)=>{
     try {
@@ -27,13 +28,13 @@ exports.signup=async(req,res)=>{
         // getting secure user info
         const secureInfo=sanitizeUser(createdUser)
 
-        // generating jwt token
-        const token=generateToken(secureInfo)
+        // generating jwt token (await the async function)
+        const token=await generateToken(secureInfo)
 
-        // sending jwt token in the response cookies
+        // sending jwt token in the response cookies (fix maxAge calculation)
         res.cookie('token',token,{
             sameSite:process.env.PRODUCTION==='true'?"None":'Lax',
-            maxAge:new Date(Date.now() + (parseInt(process.env.COOKIE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000))),
+            maxAge: parseInt(process.env.COOKIE_EXPIRATION_DAYS || 7) * 24 * 60 * 60 * 1000, // Convert days to milliseconds
             httpOnly:true,
             secure:process.env.PRODUCTION==='true'?true:false
         })
@@ -275,7 +276,42 @@ exports.checkAuth=async(req,res)=>{
         }
         res.sendStatus(401)
     } catch (error) {
-        console.log(error);
+        console.log('checkAuth error:', error);
         res.sendStatus(500)
     }
 }
+
+// OAuth Success Handler
+exports.oauthSuccess = async (req, res) => {
+    try {
+        if (req.user) {
+            // Generate JWT token for OAuth user (await the async function)
+            const token = await generateToken(req.user);
+
+            // Set cookie with secure flags - more explicit settings for development
+            const cookieOptions = {
+                httpOnly: true,
+                secure: process.env.PRODUCTION === 'true' ? true : false,
+                sameSite: process.env.PRODUCTION === 'true' ? "None" : 'Lax',
+                maxAge: parseInt(process.env.COOKIE_EXPIRATION_DAYS || 1) * 24 * 60 * 60 * 1000, // Convert days to milliseconds
+                domain: process.env.PRODUCTION === 'true' ? undefined : 'localhost', // Explicit domain for development
+                path: '/' // Ensure path is set
+            };
+            
+            res.cookie('token', token, cookieOptions);
+
+            // Redirect to frontend success page
+            res.redirect(`${process.env.ORIGIN}/oauth-success?user=${encodeURIComponent(JSON.stringify(req.user))}`);
+        } else {
+            res.redirect(`${process.env.ORIGIN}/login?error=oauth_failed`);
+        }
+    } catch (error) {
+        console.error('OAuth Success Error:', error);
+        res.redirect(`${process.env.ORIGIN}/login?error=oauth_failed`);
+    }
+};
+
+// OAuth Failure Handler
+exports.oauthFailure = (req, res) => {
+    res.redirect(`${process.env.ORIGIN}/login?error=oauth_failed`);
+};
