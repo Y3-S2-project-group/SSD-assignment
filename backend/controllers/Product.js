@@ -59,12 +59,19 @@ exports.getAll = async (req, res) => {
 
 exports.getById=async(req,res)=>{
     try {
-        const {id}=req.params
-        const result=await Product.findById(id).populate("brand").populate("category")
-        res.status(200).json(result)
+        const { id } = req.params;
+        // Validate id is a valid MongoDB ObjectId
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid product ID' });
+        }
+        const result = await Product.findById(id).populate("brand").populate("category");
+        if (!result) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        res.status(200).json(result);
     } catch (error) {
         console.log(error);
-        res.status(500).json({message:'Error getting product details, please try again later'})
+        res.status(500).json({ message: 'Error getting product details, please try again later' });
     }
 }
 
