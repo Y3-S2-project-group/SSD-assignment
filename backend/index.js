@@ -57,23 +57,6 @@ server.use((req, res, next) => {
 // .Anti-Clickjacking Protection
 server.use(helmet.frameguard({ action: "deny" })) // X-Frame-Options: DENY
 
-//  Content Security Policy (FIXED - removed conflicting frameAncestors)
-server.use(
-  helmet.contentSecurityPolicy({
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // Added unsafe-inline for React
-      styleSrc: ["'self'", "'unsafe-inline'", "https:"], // Added unsafe-inline for inline styles
-      imgSrc: ["'self'", "data:", "https:", "blob:"], // Added blob: for dynamic images
-      connectSrc: ["'self'", "http://localhost:8000", "ws://localhost:3000"], // Added WebSocket for React dev
-      fontSrc: ["'self'", "https:", "data:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameAncestors: ["'none'"], // This replaces X-Frame-Options for modern browsers
-    },
-  })
-)
-
 //  Additional Security Headers
 server.use(helmet.noSniff()) // X-Content-Type-Options: nosniff
 server.use(helmet.xssFilter()) // X-XSS-Protection: 1; mode=block

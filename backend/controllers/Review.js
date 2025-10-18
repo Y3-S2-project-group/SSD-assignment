@@ -26,6 +26,9 @@ exports.getByProductId=async(req,res)=>{
             skip=pageSize*(page-1)
             limit=pageSize
         }
+        
+            const totalDocs=await Review.find({product:id}).countDocuments().exec()
+            const result=await Review.find({product:id}).skip(skip).limit(limit).populate('user').exec()
 
             const sanitizedResult = result.map(review => {
             if (review.user) {
