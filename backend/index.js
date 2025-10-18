@@ -22,8 +22,6 @@ const reviewRoutes = require("./routes/Review")
 const wishlistRoutes = require("./routes/Wishlist")
 const passport = require("./config/passport");
 const { connectToDB } = require("./database/db")
-
-const path = require("path")
 const helmet = require("helmet")
 
 // server init
@@ -45,6 +43,17 @@ server.use((req, res, next) => {
   );
   next();
 });
+
+// Express session configuration for OAuth
+server.use(session({
+    secret: process.env.SESSION_SECRET || process.env.SECRET_KEY,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.PRODUCTION === 'true',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
 
 // database connection
 connectToDB()

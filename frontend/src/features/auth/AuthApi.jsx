@@ -19,7 +19,7 @@ export const login=async(cred)=>{
 
 // Google OAuth login - redirect to backend
 export const loginWithGoogle = () => {
-    window.location.href = `http://localhost:8000/api/auth/google`;
+    window.location.href = `${process.env.REACT_APP_BASE_URL}/auth/google`;
 }
 
 export const verifyOtp=async(cred)=>{
