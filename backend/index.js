@@ -21,6 +21,23 @@ const helmet = require("helmet")
 // server init
 const server = express()
 
+// CSP middleware
+server.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self'; " +
+    "style-src 'self' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data:; " +
+    "object-src 'none'; " +
+    "frame-ancestors 'self'; " +
+    "base-uri 'self'; " +
+    "form-action 'self'"
+  );
+  next();
+});
+
 // database connection
 connectToDB()
 
