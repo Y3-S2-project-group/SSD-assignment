@@ -1,5 +1,4 @@
-const Review=require("../models/Review")
-// Sanitize user field in each review
+const Review=require("../models/Review");
 const { sanitizeUser } = require("../utils/SanitizeUser");
 
 exports.create=async(req,res)=>{
@@ -27,11 +26,11 @@ exports.getByProductId=async(req,res)=>{
             skip=pageSize*(page-1)
             limit=pageSize
         }
+        
+            const totalDocs=await Review.find({product:id}).countDocuments().exec()
+            const result=await Review.find({product:id}).skip(skip).limit(limit).populate('user').exec()
 
-        const totalDocs=await Review.find({product:id}).countDocuments().exec()
-        const result=await Review.find({product:id}).skip(skip).limit(limit).populate('user').exec()
-
-        const sanitizedResult = result.map(review => {
+            const sanitizedResult = result.map(review => {
             if (review.user) {
                 review = review.toObject();
                 review.user = sanitizeUser(review.user);

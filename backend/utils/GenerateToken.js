@@ -16,15 +16,13 @@ exports.generateToken = async (payload, passwordReset = false) => {
         await User.findByIdAndUpdate(payload._id, { currentJTI: jti });
     }
 
-    const token = jwt.sign(
+    return jwt.sign(
         payload,
         process.env.SECRET_KEY,
         {
             expiresIn: passwordReset
                 ? process.env.PASSWORD_RESET_TOKEN_EXPIRATION
-                : process.env.LOGIN_TOKEN_EXPIRATION || '24h', // short-lived token
+                : process.env.LOGIN_TOKEN_EXPIRATION || '15m', // short-lived token
         }
     );
-    
-    return token;
 };

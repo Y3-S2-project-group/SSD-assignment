@@ -1,33 +1,75 @@
-// index.js
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const morgan = require("morgan");
-const cookieParser = require("cookie-parser");
+require("dotenv").config()
+const express = require("express")
+const cors = require("cors")
+const morgan = require("morgan")
+const cookieParser = require("cookie-parser")
 const session = require("express-session");
 const fs = require("fs");
 const http = require("http");
 const https = require("https");
 const path = require("path");
+const rateLimit = require("express-rate-limit");
 
+const authRoutes = require("./routes/Auth")
+const productRoutes = require("./routes/Product")
+const orderRoutes = require("./routes/Order")
+const cartRoutes = require("./routes/Cart")
+const brandRoutes = require("./routes/Brand")
+const categoryRoutes = require("./routes/Category")
+const userRoutes = require("./routes/User")
+const addressRoutes = require("./routes/Address")
+const reviewRoutes = require("./routes/Review")
+const wishlistRoutes = require("./routes/Wishlist")
+const passport = require("./config/passport");
+const { connectToDB } = require("./database/db")
 
+const path = require("path")
+const helmet = require("helmet")
 
-// Import routes
-const authRoutes = require("./routes/Auth");
-const productRoutes = require("./routes/Product");
-const orderRoutes = require("./routes/Order");
-const cartRoutes = require("./routes/Cart");
-const brandRoutes = require("./routes/Brand");
-const categoryRoutes = require("./routes/Category");
-const userRoutes = require("./routes/User");
-const addressRoutes = require("./routes/Address");
-const reviewRoutes = require("./routes/Review");
-const wishlistRoutes = require("./routes/Wishlist");
+// server init
+const server = express()
 
-const { connectToDB } = require("./database/db");
+// CSP middleware
+server.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self'; " +
+    "style-src 'self' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data:; " +
+    "object-src 'none'; " +
+    "frame-ancestors 'self'; " +
+    "base-uri 'self'; " +
+    "form-action 'self'"
+  );
+  next();
+});
 
-// Initialize app
-const server = express();
+// database connection
+connectToDB()
+
+// SECURITY HEADERS - Apply early in middleware chain
+//.HSTS Header - Only in production or when HTTPS is available
+server.use((req, res, next) => {
+  // Only set HSTS if connection is secure
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production') {
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload" 
+    )
+  }
+  next()
+})
+
+// .Anti-Clickjacking Protection
+server.use(helmet.frameguard({ action: "deny" })) // X-Frame-Options: DENY
+
+//  Additional Security Headers
+server.use(helmet.noSniff()) // X-Content-Type-Options: nosniff
+server.use(helmet.xssFilter()) // X-XSS-Protection: 1; mode=block
+server.use(helmet.referrerPolicy({ policy: "same-origin" })) // Referrer-Policy
+server.use(helmet.hidePoweredBy()) // Remove X-Powered-By header
 
 // --- CORS Configuration ---
 const devOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
@@ -53,38 +95,66 @@ const corsOptions = {
 server.use(cors(corsOptions));
 
 // Import Passport configuration
-const passport = require("./config/passport");
 
 // --- Middlewares ---
 server.use(express.json());
-server.use(cookieParser());
-server.use(morgan("tiny"));
-
-// Express session configuration for OAuth
-server.use(session({
-    secret: process.env.SESSION_SECRET || process.env.SECRET_KEY,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.PRODUCTION === 'true',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
-
 // Initialize Passport middleware
 server.use(passport.initialize());
 server.use(passport.session());
 
-// Prevent NoSQL injection (strip out $ and . keys)
-const mongoSanitize = require("express-mongo-sanitize");
-server.use(mongoSanitize());
+// Basic middlewares
+server.use(express.json({ limit: '10mb' })) // Added limit for file uploads
+server.use(express.urlencoded({ extended: true }))
+server.use(cookieParser())
+server.use(morgan("tiny"))
 
-// Add security headers (beyond your manual CSP)
-const helmet = require("helmet");
-server.use(helmet());
+// API routes
+server.use("/auth", authRoutes)
+server.use("/users", userRoutes)
+server.use("/products", productRoutes)
+server.use("/orders", orderRoutes)
+server.use("/cart", cartRoutes)
+server.use("/brands", brandRoutes)
+server.use("/categories", categoryRoutes)
+server.use("/address", addressRoutes)
+server.use("/reviews", reviewRoutes)
+server.use("/wishlist", wishlistRoutes)
+
+// Test endpoint for security headers
+server.get("/api/security-test", (req, res) => {
+  res.json({
+    message: "Security headers test",
+    secure: req.secure,
+    protocol: req.protocol,
+    headers: {
+      'strict-transport-security': res.getHeader('strict-transport-security'),
+      'x-frame-options': res.getHeader('x-frame-options'),
+      'x-content-type-options': res.getHeader('x-content-type-options')
+    },
+    timestamp: new Date().toISOString()
+  })
+})
+
+// Serve React build folder (only in production)
+if (process.env.NODE_ENV === 'production') {
+  server.use(express.static(path.join(__dirname, "build")))
+  
+  // Catch-all route for React (only in production)
+  server.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "build", "index.html"))
+  })
+} else {
+  // Development route
+  server.get("/", (req, res) => {
+    res.json({ 
+      message: "API Server Running", 
+      environment: "development",
+      port: 8000
+    })
+  })
+}
 
 // Optional: Rate limiting (prevent brute force / DoS)
-const rateLimit = require("express-rate-limit");
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Higher limit for development
@@ -94,47 +164,19 @@ const limiter = rateLimit({
 });
 server.use(limiter);
 
-// --- Security Headers ---
-server.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'self'; " +
-      "script-src 'self'; " +
-      "style-src 'self' https://fonts.googleapis.com; " +
-      "font-src 'self' https://fonts.gstatic.com; " +
-      "img-src 'self' data:; " +
-      "object-src 'none'; " +
-      "frame-ancestors 'self'; " +
-      "base-uri 'self'; " +
-      "form-action 'self'"
-  );
-  next();
-});
+// Error handling middleware
+server.use((err, req, res, next) => {
+  console.error(err.stack)
+  res.status(500).json({ 
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+  })
+})
 
-if (process.env.NODE_ENV === "production") {
-  server.use((req, res, next) => {
-    res.setHeader(
-      "Strict-Transport-Security",
-      "max-age=63072000; includeSubDomains; preload"
-    );
-    next();
-  });
-}
-
-// --- Database ---
-connectToDB();
-
-// --- Routes ---
-server.use("/api/auth", authRoutes);
-server.use("/api/users", userRoutes);
-server.use("/api/products", productRoutes);
-server.use("/api/orders", orderRoutes);
-server.use("/api/cart", cartRoutes);
-server.use("/api/brands", brandRoutes);
-server.use("/api/categories", categoryRoutes);
-server.use("/api/address", addressRoutes);
-server.use("/api/reviews", reviewRoutes);
-server.use("/api/wishlist", wishlistRoutes);
+// 404 handler
+server.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' })
+})
 
 // --- Default Route ---
 server.get("/", (req, res) => {
